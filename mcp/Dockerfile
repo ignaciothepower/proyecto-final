@@ -8,7 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 2) Despues el codigo
-COPY server.py logs.py config.py ./
+COPY server.py logs.py ./
 COPY datos/ datos/
 
 # En la nube el servidor habla HTTP (en local, STDIO)
