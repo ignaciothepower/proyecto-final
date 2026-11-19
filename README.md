@@ -1,6 +1,8 @@
 # Proyecto final · El asistente de la tienda, en producción
 
-**Máster AI Engineer · Sesión 20.** Un chatbot web que atiende a los clientes de una tienda online: consulta pedidos, convierte precios, responde con los documentos de la tienda y recuerda cada conversación. Todo el máster junta en un solo proyecto, desplegado en **Azure** con **CI/CD**.
+**Máster AI Engineer · Sesión 20.** Un chatbot web que atiende a los clientes de una tienda online: consulta pedidos, convierte precios, responde con los documentos de la tienda y recuerda cada conversación. Todo el máster junto en un solo proyecto, desplegado en **Azure** con **CI/CD**.
+
+![Arquitectura del proyecto final en Azure](arquitectura.png)
 
 ```
                  Navegador (tú, o cualquiera desde el móvil)
