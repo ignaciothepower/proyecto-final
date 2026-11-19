@@ -130,7 +130,9 @@
   }
 
   async function preguntar(mensaje) {
-    if (!mensaje.trim()) return;
+    // Un mensaje cada vez: si llegan dos a la vez al mismo hilo, los dos parten de la misma memoria
+    // y el segundo en guardarse "pisa" al primero (se vio en produccion: «Hola, soy Pepe» se perdio).
+    if (!mensaje.trim() || enviar.disabled) return;
     burbuja("yo", mensaje);
     texto.value = "";
     enviar.disabled = true;
