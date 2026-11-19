@@ -1,0 +1,62 @@
+# CD del proyecto final: cuando la CI de main termina EN VERDE, se construyen las imagenes nuevas
+# en Azure y las dos Container Apps pasan a usarlas. Nadie pulsa ningun boton: push -> CI -> CD.
+#
+# Requisitos (una sola vez): azure/desplegar.sh (crea la infraestructura) y azure/conectar_github.sh
+# (da permiso a este workflow sin contrasenas, con OIDC). Secrets: AZURE_CLIENT_ID, AZURE_TENANT_ID,
+# AZURE_SUBSCRIPTION_ID.
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: # boton "Run workflow" para relanzarlo a mano
+
+permissions:
+  id-token: write # para pedirle a GitHub el token OIDC que Azure acepta
+  contents: read
+
+env:
+  RG: rg-tienda-final
+
+jobs:
+  desplegar:
+    # solo si la CI salio verde (o si lo lanzas a mano) y nunca desde un pull request
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }} # exactamente el commit que paso la CI
+
+      - name: Entrar en Azure (OIDC, sin contrasena)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Construir las imagenes en Azure (etiqueta = commit)
+        run: |
+          ACR=$(az acr list -g "$RG" --query "[0].name" -o tsv)
+          TAG=$(git rev-parse --short HEAD)
+          echo "ACR=$ACR" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          az acr build -r "$ACR" -t "mcp-tienda:$TAG" mcp --no-logs -o none
+          az acr build -r "$ACR" -t "chatbot-tienda:$TAG" agente --no-logs -o none
+
+      - name: Actualizar las dos Container Apps
+        run: |
+          az extension add --name containerapp --upgrade --only-show-errors
+          az containerapp update -n mcp-tienda -g "$RG" --image "$ACR.azurecr.io/mcp-tienda:$TAG" -o none
+          az containerapp update -n chatbot-tienda -g "$RG" --image "$ACR.azurecr.io/chatbot-tienda:$TAG" -o none
+
+      - name: Comprobar que el chatbot responde
+        run: |
+          URL="https://$(az containerapp show -n chatbot-tienda -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)"
+          for i in $(seq 1 20); do
+            if curl -fsS "$URL/salud"; then echo; echo "Desplegado: $URL"; exit 0; fi
+            sleep 15
+          done
+          echo "El chatbot no responde en $URL/salud"; exit 1

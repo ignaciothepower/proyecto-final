@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asistente de la tienda</title>
+<style>
+  :root {
+    --fondo: #f4f6fb; --panel: #ffffff; --texto: #1c2333; --suave: #667085; --borde: #e3e7ef;
+    --acento: #2563eb; --acento-suave: #e8efff; --yo: #2563eb; --yo-texto: #ffffff; --ok: #0f9d58;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #0f1420; --panel: #171e2e; --texto: #e7ecf5; --suave: #98a2b3; --borde: #273047;
+      --acento: #6c9bff; --acento-suave: #1c2a4a; --yo: #3b6fe0; --yo-texto: #ffffff; --ok: #34c77b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--texto);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .app { max-width: 760px; margin: 0 auto; height: 100dvh; display: flex; flex-direction: column; padding: 0 16px; }
+  header { display: flex; align-items: center; gap: 12px; padding: 16px 0 12px; border-bottom: 1px solid var(--borde); }
+  .logo { width: 40px; height: 40px; border-radius: 12px; background: var(--acento); color: #fff;
+          display: grid; place-items: center; font-size: 22px; flex: none; }
+  header h1 { font-size: 18px; margin: 0; }
+  header p { margin: 0; font-size: 13px; color: var(--suave); }
+  header button { margin-left: auto; }
+  #chat { flex: 1; overflow-y: auto; padding: 20px 0; display: flex; flex-direction: column; gap: 14px; }
+  .fila { display: flex; flex-direction: column; max-width: 85%; }
+  .fila.yo { align-self: flex-end; align-items: flex-end; }
+  .burbuja { padding: 10px 14px; border-radius: 16px; background: var(--panel); border: 1px solid var(--borde);
+             white-space: pre-wrap; word-wrap: break-word; }
+  .yo .burbuja { background: var(--yo); color: var(--yo-texto); border-color: var(--yo); border-bottom-right-radius: 4px; }
+  .bot .burbuja { border-bottom-left-radius: 4px; }
+  .como { margin-top: 6px; font-size: 12.5px; color: var(--suave); }
+  .como summary { cursor: pointer; list-style: none; display: inline-flex; gap: 6px; align-items: center; }
+  .como summary::-webkit-details-marker { display: none; }
+  .chip-ruta { background: var(--acento-suave); color: var(--acento); border-radius: 999px; padding: 1px 9px; font-weight: 600; }
+  .como pre { margin: 6px 0 0; padding: 8px 10px; background: var(--panel); border: 1px solid var(--borde);
+              border-radius: 8px; white-space: pre-wrap; font-size: 12px; max-height: 180px; overflow: auto; }
+  .como a { color: var(--acento); }
+  .pensando .burbuja { color: var(--suave); font-style: italic; }
+  #sugerencias { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 10px; }
+  #sugerencias button { font-size: 13.5px; }
+  form { display: flex; gap: 8px; padding: 10px 0 18px; border-top: 1px solid var(--borde); }
+  input { flex: 1; min-width: 0; font: inherit; padding: 12px 14px; border-radius: 12px;
+          border: 1px solid var(--borde); background: var(--panel); color: var(--texto); }
+  input:focus { outline: 2px solid var(--acento); outline-offset: 0; }
+  button { font: inherit; cursor: pointer; border-radius: 12px; border: 1px solid var(--borde);
+           background: var(--panel); color: var(--texto); padding: 8px 12px; }
+  button.principal { background: var(--acento); color: #fff; border-color: var(--acento); padding: 0 18px; font-weight: 600; }
+  button:disabled { opacity: .55; cursor: wait; }
+  .pie { text-align: center; font-size: 12px; color: var(--suave); padding-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo" aria-hidden="true">🛍️</div>
+    <div>
+      <h1>Asistente de la tienda</h1>
+      <p id="estado">Pedidos, envíos, devoluciones, tallas y garantía</p>
+    </div>
+    <button id="nueva" type="button" title="Empezar una conversación nueva">Nueva conversación</button>
+  </header>
+
+  <main id="chat" aria-live="polite"></main>
+
+  <div id="sugerencias">
+    <button type="button">Hola, soy Ana</button>
+    <button type="button">¿Cuándo llega mi pedido 1234?</button>
+    <button type="button">¿Y eso cuánto es en dólares?</button>
+    <button type="button">¿Cuánto cuesta el envío a Canarias?</button>
+    <button type="button">¿Cómo me llamo?</button>
+  </div>
+
+  <form id="form" autocomplete="off">
+    <input id="texto" placeholder="Escribe tu pregunta…" maxlength="500" aria-label="Tu mensaje">
+    <button class="principal" id="enviar" type="submit">Enviar</button>
+  </form>
+  <div class="pie">Agente LangGraph · herramientas MCP · memoria en Postgres · trazas en LangFuse</div>
+</div>
+
+<script>
+  const RUTAS = {
+    pedido: "📦 pedido · tool consultar_pedido (MCP)",
+    precio: "💱 precio · tool convertir_precio (MCP)",
+    rag: "📚 RAG · documentos de la tienda",
+    charla: "💬 charla · solo el modelo",
+  };
+  const chat = document.getElementById("chat");
+  const texto = document.getElementById("texto");
+  const enviar = document.getElementById("enviar");
+
+  function nuevoHilo() { return "web-" + Math.random().toString(36).slice(2, 10); }
+  let hilo;
+  try { hilo = localStorage.getItem("hilo") || nuevoHilo(); localStorage.setItem("hilo", hilo); }
+  catch (e) { hilo = nuevoHilo(); }
+
+  function burbuja(quien, contenido, clase = "") {
+    const fila = document.createElement("div");
+    fila.className = `fila ${quien} ${clase}`;
+    const b = document.createElement("div");
+    b.className = "burbuja";
+    b.textContent = contenido;
+    fila.appendChild(b);
+    chat.appendChild(fila);
+    chat.scrollTop = chat.scrollHeight;
+    return fila;
+  }
+
+  function detalle(fila, r) {
+    const d = document.createElement("details");
+    d.className = "como";
+    const s = document.createElement("summary");
+    s.innerHTML = `<span class="chip-ruta"></span><span></span>`;
+    s.children[0].textContent = RUTAS[r.ruta] || r.ruta || "?";
+    s.children[1].textContent = `${r.segundos} s · ${r.modelo} · ver cómo lo ha resuelto`;
+    d.appendChild(s);
+    const pre = document.createElement("pre");
+    pre.textContent = r.datos || "(sin datos: ha respondido solo con el modelo)";
+    d.appendChild(pre);
+    if (r.traza) {
+      const a = document.createElement("a");
+      a.href = r.traza; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = "Abrir la traza en LangFuse ↗";
+      d.appendChild(a);
+    }
+    fila.appendChild(d);
+  }
+
+  async function preguntar(mensaje) {
+    if (!mensaje.trim()) return;
+    burbuja("yo", mensaje);
+    texto.value = "";
+    enviar.disabled = true;
+    const espera = burbuja("bot", "Pensando…", "pensando");
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hilo, mensaje }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const r = await res.json();
+      espera.remove();
+      detalle(burbuja("bot", r.respuesta), r);
+    } catch (e) {
+      espera.remove();
+      burbuja("bot", "Uy, no he podido responder (" + e.message + "). Si es la primera pregunta, el servidor se estaba despertando: vuelve a intentarlo.");
+    } finally {
+      enviar.disabled = false;
+      texto.focus();
+    }
+  }
+
+  document.getElementById("form").addEventListener("submit", (e) => { e.preventDefault(); preguntar(texto.value); });
+  document.querySelectorAll("#sugerencias button").forEach((b) => b.addEventListener("click", () => preguntar(b.textContent)));
+  document.getElementById("nueva").addEventListener("click", () => {
+    hilo = nuevoHilo();
+    try { localStorage.setItem("hilo", hilo); } catch (e) {}
+    chat.innerHTML = "";
+    burbuja("bot", "Conversación nueva: no recuerdo nada de la anterior. ¿En qué te ayudo?");
+  });
+
+  burbuja("bot", "¡Hola! Soy el asistente de la tienda. Pregúntame por tu pedido, envíos, devoluciones, tallas o garantía.");
+  fetch("/salud").then((r) => r.json()).then((s) => {
+    document.getElementById("estado").textContent = `Conectado · modelo ${s.modelo}`;
+  }).catch(() => {});
+</script>
+</body>
+</html>
