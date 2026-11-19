@@ -23,15 +23,25 @@ fi
 az ad sp show --id "$APP_ID" -o none 2>/dev/null || az ad sp create --id "$APP_ID" -o none
 
 echo "== 2. Confianza: solo los tokens de GitHub para la rama main de $REPO"
-CRED=$(az ad app federated-credential list --id "$APP_ID" --query "[?name=='rama-main'] | length(@)" -o tsv)
-if [ "$CRED" = "0" ]; then
-  az ad app federated-credential create --id "$APP_ID" --parameters "{
-    \"name\": \"rama-main\",
-    \"issuer\": \"https://token.actions.githubusercontent.com\",
-    \"subject\": \"repo:$REPO:ref:refs/heads/main\",
-    \"audiences\": [\"api://AzureADTokenExchange\"]
-  }" -o none
-fi
+# GitHub presenta un "subject" con este formato. Los repos nuevos anaden el numero de usuario y de repo
+# (repo:usuario@123/repo@456:...), asi que registramos los dos formatos. Los numeros salen de la API publica.
+IDS=$(curl -fsS "https://api.github.com/repos/$REPO" | python3 -c "import sys,json; r=json.load(sys.stdin); print(r['owner']['id'], r['id'])" 2>/dev/null || python -c "import sys,json,urllib.request; r=json.load(urllib.request.urlopen('https://api.github.com/repos/$REPO')); print(r['owner']['id'], r['id'])")
+read -r OWNER_ID REPO_ID <<< "$IDS"
+SUJETO_CLASICO="repo:$REPO:ref:refs/heads/main"
+SUJETO_CON_IDS="repo:${REPO%%/*}@$OWNER_ID/${REPO##*/}@$REPO_ID:ref:refs/heads/main"
+crear_confianza() {  # $1 = nombre, $2 = subject
+  if [ "$(az ad app federated-credential list --id "$APP_ID" --query "[?name=='$1'] | length(@)" -o tsv)" = "0" ]; then
+    az ad app federated-credential create --id "$APP_ID" --parameters "{
+      \"name\": \"$1\",
+      \"issuer\": \"https://token.actions.githubusercontent.com\",
+      \"subject\": \"$2\",
+      \"audiences\": [\"api://AzureADTokenExchange\"]
+    }" -o none
+  fi
+  echo "   $1: $2"
+}
+crear_confianza rama-main "$SUJETO_CLASICO"
+crear_confianza rama-main-ids "$SUJETO_CON_IDS"
 
 echo "== 3. Permiso minimo: Contributor SOLO sobre el grupo $RG (nada mas de tu cuenta)"
 az role assignment create --assignee "$APP_ID" --role Contributor \
