@@ -12,6 +12,7 @@
 # Uso (desde la raiz del repo):           bash azure/desplegar.sh
 # Al terminar el curso:                   bash azure/apagar.sh
 set -euo pipefail
+export MSYS_NO_PATHCONV=1  # Git Bash en Windows: que no convierta "/subscriptions/..." en una ruta de disco
 
 RG=${RG:-rg-tienda-final}         # grupo de recursos: todo vive aqui y se borra de una vez
 LOC=${LOC:-swedencentral}         # region con Azure OpenAI y Container Apps

@@ -6,6 +6,7 @@
 # Se ejecuta UNA vez, despues de azure/desplegar.sh.
 # Uso:   REPO=tu-usuario/proyecto-final bash azure/conectar_github.sh
 set -euo pipefail
+export MSYS_NO_PATHCONV=1  # Git Bash en Windows: que no convierta "/subscriptions/..." en una ruta de disco
 
 REPO=${REPO:?Pon tu repositorio: export REPO=tu-usuario/proyecto-final}
 RG=${RG:-rg-tienda-final}
