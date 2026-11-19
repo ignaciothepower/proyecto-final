@@ -28,9 +28,10 @@ SYSTEM = (
     "Eres el asistente de una tienda online. Responde en espanol, en 1-3 frases, con tono cercano.\n"
     "Si hay DATOS, usa SOLO esos datos (no inventes precios ni plazos) y termina citando la fuente entre "
     "corchetes, por ejemplo [envios.txt] o [tool consultar_pedido]. Si no hay datos y te preguntan algo de la "
-    "tienda, di que no lo sabes y ofrece hablar con una persona."
+    "tienda, di que no lo sabes y ofrece hablar con una persona.\n"
+    "Lo que el cliente te ha contado en esta conversacion (su nombre, su pedido) SI lo sabes: usalo."
 )
-UMBRAL = 0.72  # distancia coseno maxima: medida en salidas/02_indexar_y_distancias.txt (lo ajeno sale > 0.75)
+UMBRAL = 0.72  # distancia coseno maxima, medida con preguntas reales (lo ajeno a la tienda sale > 0.75)
 VENTANA = 8  # mensajes del historial que ve el LLM: la memoria guarda todo, el prompt solo lo reciente
 
 
