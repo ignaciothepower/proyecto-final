@@ -165,7 +165,7 @@
     burbuja("bot", "Conversación nueva: no recuerdo nada de la anterior. ¿En qué te ayudo?");
   });
 
-  burbuja("bot", "¡Hola! Soy el asistente de la tienda. Pregúntame por tu pedido, envíos, devoluciones, tallas o garantía.");
+  burbuja("bot", "¡Hola, clase del máster! Soy el asistente de la tienda");
   fetch("/salud").then((r) => r.json()).then((s) => {
     document.getElementById("estado").textContent = `Conectado · modelo ${s.modelo}`;
   }).catch(() => {});
